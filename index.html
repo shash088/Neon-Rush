@@ -59,6 +59,20 @@ input[type=text]{background:#150a2a;color:#eaf2ff;border:1px solid var(--v);bord
 <section class="scr" id="pause"><h2>Paused</h2><div class="col"><button class="big" id="res">Resume</button><button id="rst">Restart</button><button id="qt">Quit to menu</button></div></section>
 <section class="scr" id="over"><h2 id="ot"></h2><div class="sc" id="osc">0</div><div class="pb" id="opb"></div><div class="pb" id="ovs" style="color:#ff7ad9"></div><div class="glass"><div class="st" id="obd"></div></div><p class="sub" id="otip"></p><div class="row"><button class="big" id="retry">Retry</button><button id="shr">Share score</button><button id="omn">Menu</button></div></section>
 <script>
+/* Online leaderboard bridge (Firebase Realtime Database). Paste your database URL below. */
+(function(){
+const BASE='PASTE_YOUR_DATABASE_URL_HERE';
+if(window.claude||BASE.indexOf('PASTE_')===0)return;
+const j=async(p,m,b)=>{const r=await fetch(BASE.replace(/\/$/,'')+'/'+p+'.json',{method:m||'GET',body:b?JSON.stringify(b):undefined});if(!r.ok)throw new Error(r.status);return r.json()};
+let uid;try{uid=localStorage.getItem('nr_uid');if(!uid){uid=crypto.randomUUID().replace(/-/g,'');localStorage.setItem('nr_uid',uid)}}catch(e){uid='u'+Math.random().toString(36).slice(2)}
+const db={
+ doc:p=>({acquire:async()=>({acquired:true}),get:async()=>{const v=await j(p);return{exists:v!=null,data:()=>v}},set:o=>j(p,'PUT',o)}),
+ collection:c=>({limit:()=>({onSnapshot(ok,err){const poll=async()=>{try{const v=await j(c)||{};ok({docs:Object.entries(v).map(([id,d])=>({id,data:()=>d}))})}catch(e){err&&err(e)}};poll();setInterval(poll,8000)}})})
+};
+window.claude={use:async n=>n=='db'?db:{id:async()=>uid,can:async()=>true}};
+})();
+</script>
+<script>
 const $=s=>document.querySelector(s),cv=$('#cv'),x=cv.getContext('2d'),R=Math.random,cl=(v,a,b)=>Math.max(a,Math.min(b,v));
 let W,H,U=1,st=[];
 function rs(){const d=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*d;cv.height=H*d;x.setTransform(d,0,0,d,0,0);U=Math.max(.7,Math.min(W,H)/600);st=[...Array(70)].map(()=>({x:R()*W,y:R()*H,z:.2+R()}))}
