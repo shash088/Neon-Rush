@@ -196,22 +196,26 @@ const seen=S.seen[k];S.seen[k]=1;sv();g.rv={t:0};$('#bi').textContent=d.i;$('#bn
 function fire(){const g=G;if(!g||g.over||g.pause||g.rv||g.fx.gun<=0||g.fx.gv!='c'||g.gf>0)return;g.gf=.22;const p=g.p;g.bl.push({x:p.x-10*U,y:p.y-p.r,v:-1000*U},{x:p.x+10*U,y:p.y-p.r,v:-1000*U});SFX.dash()}
 /* friend rooms */
 let forceSeed=null,RM=null,rpt=0;
-const rok=()=>DB&&UID&&S.name&&gW,ic=g=>g=='g'?'👧':'👦',rdc=(m,s)=>DB.doc('rooms/'+m.id+s);
+const rok=()=>DB&&UID&&S.name&&gW,ic=g=>g=='g'?'👧':'👦',rdc=(m,s)=>DB.doc((m.px||'rooms/')+m.id+s);
 function openFr(){if(!S.name){show('setup');return}show('fr')}
 async function frUp(){await gReady;const o=rok();$('#fe').textContent=o?'':'Online rooms are not available right now. You can still play solo and share the link.';$('#fcr').disabled=!o;$('#fjn').disabled=!o}
 $('#fsolo').onclick=()=>start('friend');
 function startPoll(){clearInterval(rpt);rpt=setInterval(rpoll,900);rpoll()}
 function leaveRoom(){clearInterval(rpt);RM=null;forceSeed=null;$('#bf').hidden=true;show('menu')}
 $('#rlv').onclick=leaveRoom;$('#rrl').onclick=leaveRoom;
-$('#fcr').onclick=async()=>{$('#fcr').disabled=true;try{let id,n=0;for(;;){id=[...Array(4)].map(()=>String.fromCharCode(65+(R()*26|0))).join('');const r=await DB.doc('rooms/'+id).get();if(!r.exists||Date.now()-(r.data().t||0)>1e7||++n>8)break}
-const m=RM={id,own:1,my:[],oppsc:[],rd0:0,R:3,sd:(R()*9e5|0)+1,opp:null,busy:0};m.rdoc={o:UID,on:S.name,og:S.gender,R:3,sd:m.sd,rd:0,cd:0,t:Date.now()};
-await Promise.all([rdc(m,'').set(m.rdoc),rdc(m,'_j').set({u:'',n:'',g:'',t:0}),rdc(m,'_ro').set({s:[],t:Date.now()}),rdc(m,'_rj').set({s:[],t:Date.now()})]);startPoll();show('rl');lobbyUp()}catch(e){RM=null;const c=String(e&&e.message);toast(c=='401'||c=='403'?'Firebase rules block rooms. Add a "rooms" rule.':'Could not create a room ('+c+')')}$('#fcr').disabled=false};
+$('#fcr').onclick=async()=>{const b=$('#fcr'),fe=$('#fe');b.disabled=true;fe.textContent='Creating room…';
+const tryP=async px=>{let id,n=0;for(;;){id=[...Array(4)].map(()=>String.fromCharCode(65+(R()*26|0))).join('');const r=await DB.doc(px+id).get();if(!r.exists||Date.now()-(r.data().t||0)>1e7||++n>8)break}
+const m={id,px,own:1,my:[],oppsc:[],rd0:0,R:3,sd:(R()*9e5|0)+1,opp:null,busy:0};m.rdoc={o:UID,on:S.name,og:S.gender,R:3,sd:m.sd,rd:0,cd:0,t:Date.now()};
+await Promise.all([rdc(m,'').set(m.rdoc),rdc(m,'_j').set({u:'',n:'',g:'',t:0}),rdc(m,'_ro').set({s:[],t:Date.now()}),rdc(m,'_rj').set({s:[],t:Date.now()})]);return m};
+let m=null,err='';for(const px of['rooms/','players/r_']){try{m=await tryP(px);break}catch(e){err=(e&&e.message)||String(e)}}
+if(m){RM=m;fe.textContent='';startPoll();show('rl');lobbyUp()}else fe.textContent='Could not create a room (error '+err+'). In Firebase → Realtime Database → Rules, allow read and write on "rooms".';b.disabled=false};
 $('#fjn').onclick=()=>{$('#rji').value='';$('#rje').textContent='';show('rj')};
 $('#rji').oninput=e=>{e.target.value=e.target.value.replace(/[^A-Za-z]/g,'').toUpperCase()};
 $('#rjg').onclick=async()=>{const id=$('#rji').value,e=$('#rje');if(id.length!=4){e.textContent='Enter the 4 letter room ID.';return}e.textContent='Joining…';
-try{const r=await DB.doc('rooms/'+id).get();if(!r.exists){e.textContent='Room not found.';return}const d=r.data();if(d.rd>0){e.textContent='That match already started.';return}
-const j=await DB.doc('rooms/'+id+'_j').get(),jd=j.exists?j.data():{};if(jd.u&&jd.u!==UID){e.textContent='Room is full.';return}
-const m=RM={id,own:0,my:[],oppsc:[],rd0:0,R:d.R,sd:d.sd,opp:{n:d.on,g:d.og},busy:0};await rdc(m,'_j').set({u:UID,n:S.name,g:S.gender,t:Date.now()});startPoll();show('rl');lobbyUp()}catch(x){const c=String(x&&x.message);e.textContent=(c=='401'||c=='403')?'Firebase rules block rooms. Add a "rooms" rule.':'Could not join ('+c+').'}};
+try{let px='',d=null;for(const q of['rooms/','players/r_']){try{const r=await DB.doc(q+id).get();if(r.exists){px=q;d=r.data();break}}catch(x){}}
+if(!d){e.textContent='Room not found. Check the ID.';return}if(d.rd>0){e.textContent='That match already started.';return}
+const m={id,px,own:0,my:[],oppsc:[],rd0:0,R:d.R,sd:d.sd,opp:{n:d.on,g:d.og},busy:0};const j=await rdc(m,'_j').get(),jd=j.exists?j.data():{};if(jd.u&&jd.u!==UID){e.textContent='Room is full.';return}
+await rdc(m,'_j').set({u:UID,n:S.name,g:S.gender,t:Date.now()});RM=m;startPoll();show('rl');lobbyUp()}catch(x){e.textContent='Could not join ('+((x&&x.message)||x)+').'}};
 $('#rstart').onclick=async()=>{const m=RM;m.rdoc={...m.rdoc,R:+$('#rrn').value,rd:1,cd:Date.now(),t:Date.now()};m.R=m.rdoc.R;$('#rstart').disabled=true;try{await rdc(m,'').set(m.rdoc)}catch(e){toast('Could not start');$('#rstart').disabled=false}};
 async function rpoll(){const m=RM;if(!m||m.busy)return;m.busy=1;try{const r=await rdc(m,'').get();if(!r.exists||RM!==m)return;const d=r.data();m.R=d.R;m.sd=d.sd;
 if(m.own){const j=await rdc(m,'_j').get(),jd=j.exists?j.data():{};m.opp=jd.u?{n:jd.n,g:jd.g}:null}else m.opp={n:d.on,g:d.og};
